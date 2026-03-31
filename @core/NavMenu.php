@@ -8,6 +8,7 @@ class NavMenu
     public const SECTION_LABELS = [
         'principal'      => 'Principal',
         'gestao'           => 'Gestão',
+        'produtos'         => 'Produtos',
         'administracao'    => 'Administração',
         'conta'            => 'Conta',
     ];
@@ -35,17 +36,20 @@ class NavMenu
                     [$mid, 'tecnico']
                 );
                 $db->execute(
-                    "UPDATE `nav_menu_itens` SET `sort_order` = 24 WHERE `url_path` = '/estoque/categorias'"
+                    "UPDATE `nav_menu_itens` SET `section_code` = 'produtos', `sort_order` = 24 WHERE `url_path` = '/estoque/categorias'"
                 );
                 $db->execute(
-                    "UPDATE `nav_menu_itens` SET `sort_order` = 25 WHERE `url_path` = '/estoque/catalogo'"
+                    "UPDATE `nav_menu_itens` SET `section_code` = 'produtos', `sort_order` = 25 WHERE `url_path` = '/estoque/catalogo'"
+                );
+                $db->execute(
+                    "UPDATE `nav_menu_itens` SET `section_code` = 'produtos' WHERE `url_path` = '/estoque' AND `id` = 7"
                 );
 
                 return;
             }
             $db->execute(
                 "INSERT INTO `nav_menu_itens` (`section_code`,`label`,`icon_class`,`url_path`,`sort_order`,`ativo`,`requer_estoque_ativo`,`item_class`,`active_rule`)
-                 VALUES ('gestao','Categorias','fas fa-folder','/estoque/categorias',24,1,1,NULL,'estoque_categorias')"
+                 VALUES ('produtos','Categorias','fas fa-folder','/estoque/categorias',24,1,1,NULL,'estoque_categorias')"
             );
             $mid = (int)$db->lastInsertId();
             if ($mid > 0) {
@@ -57,8 +61,31 @@ class NavMenu
             $db->execute(
                 "UPDATE `nav_menu_itens` SET `sort_order` = 25 WHERE `url_path` = '/estoque/catalogo'"
             );
+            $db->execute(
+                "UPDATE `nav_menu_itens` SET `section_code` = 'produtos' WHERE `url_path` = '/estoque' AND `id` = 7"
+            );
         } catch (Throwable $e) {
             error_log('NavMenu::ensureEstoqueCategoriasMenuItem: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Agrupa Categorias, Catálogo e Meu estoque na seção "Produtos" (menu lateral).
+     */
+    private static function ensureNavMenuProdutosSection(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        try {
+            $db = Database::getInstance();
+            $db->execute(
+                "UPDATE `nav_menu_itens` SET `section_code` = 'produtos' WHERE `id` IN (7, 16, 17)"
+            );
+        } catch (Throwable $e) {
+            error_log('NavMenu::ensureNavMenuProdutosSection: ' . $e->getMessage());
         }
     }
 
@@ -111,6 +138,7 @@ class NavMenu
     public static function itensAgrupados(int $userId, string $perfil): array
     {
         self::ensureEstoqueCategoriasMenuItem();
+        self::ensureNavMenuProdutosSection();
         self::ensureContaConfiguracaoMenuItem();
         $db = Database::getInstance();
         $row = $db->fetch('SELECT `estoque_ativo` FROM `usuarios` WHERE `id` = ? LIMIT 1', [$userId]);
@@ -123,7 +151,7 @@ class NavMenu
              INNER JOIN `nav_menu_item_perfis` p ON p.`menu_item_id` = m.`id`
              WHERE m.`ativo` = 1 AND p.`perfil` = ?
                AND (m.`requer_estoque_ativo` = 0 OR ? = 1)
-             ORDER BY FIELD(m.`section_code`, 'principal', 'gestao', 'administracao', 'conta'),
+             ORDER BY FIELD(m.`section_code`, 'principal', 'gestao', 'produtos', 'administracao', 'conta'),
                       m.`sort_order` ASC, m.`id` ASC",
             [$perfil, $estoqueOk ? 1 : 0]
         );
