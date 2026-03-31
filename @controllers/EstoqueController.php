@@ -699,6 +699,146 @@ class EstoqueController extends Controller
         $this->json(['ok' => true, 'itens' => $lista]);
     }
 
+    /**
+     * Extrai e normaliza o código lido (barcode/QR) para lookup no catálogo.
+     */
+    private function normalizarCodigoEscaneado(string $raw): string
+    {
+        $s = trim($raw);
+        if ($s === '') {
+            return '';
+        }
+
+        // Se vier URL com ?code=..., prioriza esse parâmetro.
+        if (preg_match('/^https?:\/\//i', $s)) {
+            $q = parse_url($s, PHP_URL_QUERY);
+            if (is_string($q)) {
+                parse_str($q, $params);
+                $cand = trim((string)($params['code'] ?? $params['codigo'] ?? ''));
+                if ($cand !== '') {
+                    $s = $cand;
+                }
+            }
+        }
+
+        // Prefixos comuns em QR corporativo: CODE:ITEM0001 / CODIGO=ITEM0001
+        if (preg_match('/(?:^|[;,\s])(code|codigo)\s*[:=]\s*([A-Za-z0-9._-]{1,64})/i', $s, $m)) {
+            $s = $m[2];
+        }
+
+        return strtoupper(mb_substr($s, 0, 64));
+    }
+
+    /**
+     * Lookup de item por código lido (scanner de barras/QR).
+     */
+    public function apiItemPorCodigo(): void
+    {
+        Auth::requireLogin();
+        if (!LimiteConta::estoqueAtivo((int)Auth::id())) {
+            $this->json(['ok' => false, 'error' => 'Estoque inativo para sua conta.'], 403);
+        }
+
+        $raw = trim((string)$this->get('code', ''));
+        if ($raw === '') {
+            $raw = trim((string)$this->get('codigo', ''));
+        }
+        if ($raw === '') {
+            $raw = trim((string)$this->get('q', ''));
+        }
+        $code = $this->normalizarCodigoEscaneado($raw);
+        if ($code === '') {
+            $this->json(['ok' => false, 'error' => 'Código vazio na leitura.'], 422);
+        }
+
+        $item = $this->itemModel->findByCodigo($code);
+        if (!$item) {
+            $this->json(['ok' => false, 'code' => 'nao_encontrado', 'message' => 'Item não encontrado para o código lido.'], 404);
+        }
+
+        $saldo = $this->saldoModel->getLinhaSaldo((int)Auth::id(), (int)$item['id']);
+        $categoriaNome = '—';
+        if (!empty($item['categoria_id'])) {
+            $cat = (new EstoqueCategoria())->find((int)$item['categoria_id']);
+            if ($cat && trim((string)$cat['nome']) !== '') {
+                $categoriaNome = (string)$cat['nome'];
+            }
+        }
+
+        $this->json([
+            'ok' => true,
+            'item' => [
+                'id'                => (int)$item['id'],
+                'codigo'            => (string)$item['codigo'],
+                'nome'              => (string)$item['nome'],
+                'categoria_nome'    => $categoriaNome,
+                'unidade'           => (string)$item['unidade'],
+                'ativo'             => (int)($item['ativo'] ?? 0),
+                'descricao'         => (string)($item['descricao'] ?? ''),
+                'nf_numero'         => (string)($item['nf_numero'] ?? ''),
+                'nf_emissao'        => (string)($item['nf_emissao'] ?? ''),
+                'nf_valor_total'    => isset($item['nf_valor_total']) ? (float)$item['nf_valor_total'] : null,
+                'fornecedor'        => (string)($item['fornecedor'] ?? ''),
+                'fornecedor_cnpj'   => (string)($item['fornecedor_cnpj'] ?? ''),
+                'compra_observacoes'=> (string)($item['compra_observacoes'] ?? ''),
+                'saldo_disponivel'  => $saldo ? (float)$saldo['quantidade'] : 0.0,
+                'saldo_minimo'      => $saldo ? (float)$saldo['quantidade_minima'] : 0.0,
+            ],
+        ]);
+    }
+
+    /**
+     * Entrada rápida por scanner na tela do catálogo.
+     */
+    public function apiEntradaRapida(): void
+    {
+        Auth::requireLogin();
+        if (!LimiteConta::estoqueAtivo((int)Auth::id())) {
+            $this->json(['ok' => false, 'error' => 'Estoque inativo para sua conta.'], 403);
+        }
+        if (!Auth::isPerfilTecnico()) {
+            $this->json(['ok' => false, 'error' => 'Apenas perfil técnico pode usar entrada rápida no catálogo.'], 403);
+        }
+
+        $itemId = (int)$this->post('item_id', 0);
+        if ($itemId <= 0) {
+            $this->json(['ok' => false, 'error' => 'Item inválido.'], 422);
+        }
+        $item = $this->itemModel->find($itemId);
+        if (!$item || (int)($item['ativo'] ?? 0) !== 1) {
+            $this->json(['ok' => false, 'error' => 'Item inválido ou inativo.'], 422);
+        }
+
+        try {
+            $q = EstoqueSaldo::parseQuantidade($this->post('quantidade', ''));
+        } catch (InvalidArgumentException $e) {
+            $this->json(['ok' => false, 'error' => $e->getMessage()], 422);
+        }
+
+        $nfNum = trim((string)$this->post('nf_numero', ''));
+        $dtCompra = trim((string)$this->post('data_compra', ''));
+        $obsParts = [];
+        if ($nfNum !== '') {
+            $obsParts[] = 'NF: ' . mb_substr($nfNum, 0, 64);
+        }
+        if ($dtCompra !== '') {
+            $obsParts[] = 'Compra: ' . mb_substr($dtCompra, 0, 10);
+        }
+        $obs = trim((string)$this->post('observacao', ''));
+        if ($obs !== '') {
+            $obsParts[] = mb_substr($obs, 0, 500);
+        }
+        $obsFinal = $obsParts !== [] ? implode(' | ', $obsParts) : 'Entrada rápida via scanner';
+
+        try {
+            $this->saldoModel->executarEntrada((int)Auth::id(), $itemId, $q, 'manual', null, $obsFinal);
+        } catch (RuntimeException $e) {
+            $this->json(['ok' => false, 'error' => $e->getMessage()], 422);
+        }
+
+        $this->json(['ok' => true, 'message' => 'Entrada lançada com sucesso.']);
+    }
+
     public function apiItensOs(string $id): void
     {
         Auth::requireLogin();

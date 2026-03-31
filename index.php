@@ -75,6 +75,10 @@ $router->get('/api/sla', [SLAController::class, 'apiSla']);
 // ----------------------------------------------------------------
 $router->get('/api/estoque/os/{id}/itens', [EstoqueController::class, 'apiItensOs']);
 $router->get('/api/estoque/saldo', [EstoqueController::class, 'apiSaldo']);
+$router->get('/api/estoque/item-por-codigo', [EstoqueController::class, 'apiItemPorCodigo']);
+$router->get('/api/estoque/item-por-codigo/', [EstoqueController::class, 'apiItemPorCodigo']);
+$router->get('/api/estoque/item-por-codigo/{code}', [EstoqueController::class, 'apiItemPorCodigo']);
+$router->post('/api/estoque/entrada-rapida', [EstoqueController::class, 'apiEntradaRapida']);
 $router->post('/estoque/os/{id}/item/{osItemId}/remover', [EstoqueController::class, 'removerItemOs']);
 $router->post('/estoque/os/{id}/item', [EstoqueController::class, 'adicionarItemOs']);
 $router->post('/estoque/minimo', [EstoqueController::class, 'atualizarMinimo']);

@@ -154,7 +154,12 @@ $slotsImagens = max(0, (int)$limiteImagensOs - $totalImagens);
                     <div class="estoque-os-lancar-row">
                         <div class="form-group estoque-os-field estoque-os-field-material">
                             <label class="form-label">Material</label>
-                            <select name="item_id" class="form-control form-control-sm estoque-os-item-select" required title="Lista compacta: código, nome e saldo"></select>
+                            <div class="estoque-os-material-wrap" style="display:flex;gap:.35rem;align-items:center">
+                                <select name="item_id" class="form-control form-control-sm estoque-os-item-select" required title="Lista compacta: código, nome e saldo"></select>
+                                <button type="button" class="btn btn-ghost btn-sm" id="btnOsScan" title="Escanear código/QR">
+                                    <i class="fas fa-qrcode"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="form-group estoque-os-field estoque-os-field-qtd">
                             <label class="form-label">Qtd. usada</label>
@@ -352,6 +357,45 @@ $slotsImagens = max(0, (int)$limiteImagensOs - $totalImagens);
                     <span class="info-value <?= $slaCssClass ?>"><?= $ordem['sla_prazo'] ? date('d/m/Y H:i', strtotime($ordem['sla_prazo'])) : '—' ?></span>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="osScanModal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="osScanTitle" style="max-width:640px">
+        <div class="modal-header">
+            <h3 class="modal-title" id="osScanTitle"><i class="fas fa-barcode"></i> Scanner de item</h3>
+            <button type="button" class="modal-close" data-os-scan-close>&times;</button>
+        </div>
+        <div class="modal-body" style="padding:0 18px 12px">
+            <p class="modal-lead">Use pistola (bip no campo) ou câmera para ler código de barras/QR.</p>
+            <div class="form-group">
+                <label class="form-label">Leitura da pistola</label>
+                <input type="text" id="osScanInput" class="form-control" placeholder="Clique aqui e bip o código">
+            </div>
+            <div class="form-group" style="margin-top:.6rem">
+                <button type="button" class="btn btn-ghost btn-sm" id="btnOsCamStart"><i class="fas fa-camera"></i> Câmera</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnOsCamStop" style="display:none"><i class="fas fa-stop"></i> Parar</button>
+            </div>
+            <video id="osScanVideo" style="display:none;width:100%;border-radius:8px;border:1px solid var(--border)" autoplay muted playsinline></video>
+            <p class="form-hint" id="osScanHint" style="margin-top:.5rem;min-height:1.25rem"></p>
+            <hr style="border-color:var(--border);opacity:.45;margin:12px 0">
+            <h4 class="card-title" style="font-size:1rem;margin:0 0 .5rem">Item encontrado</h4>
+            <dl style="display:grid;grid-template-columns:130px 1fr;gap:.4rem .8rem;margin:0 0 .75rem">
+                <dt>Código</dt><dd id="osItemCodigo">—</dd>
+                <dt>Nome</dt><dd id="osItemNome">—</dd>
+                <dt>Unidade</dt><dd id="osItemUn">—</dd>
+                <dt>Saldo atual</dt><dd id="osItemSaldo">—</dd>
+            </dl>
+            <div class="form-group">
+                <label class="form-label required" for="osItemQtdModal">Quantidade a lançar</label>
+                <input id="osItemQtdModal" type="text" class="form-control" inputmode="decimal" placeholder="Ex.: 1 ou 1,5">
+            </div>
+            <input type="hidden" id="osItemIdModal" value="">
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" data-os-scan-close>Fechar</button>
+            <button type="button" class="btn btn-primary" id="btnOsScanConfirm"><i class="fas fa-check"></i> Confirmar lançamento</button>
         </div>
     </div>
 </div>

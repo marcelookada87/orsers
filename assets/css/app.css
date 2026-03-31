@@ -708,6 +708,35 @@ body.modal-open { overflow: hidden; }
     display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
     padding: 12px 18px 16px; border-top: 1px solid var(--border);
 }
+.modal-body dl dt {
+    font-size: .78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.modal-body dl dd {
+    margin: 0;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+.modal-body video {
+    background: rgba(15, 23, 42, .35);
+    object-fit: cover;
+    max-height: 280px;
+}
+.estoque-os-material-wrap .btn,
+#catalogoNovoForm .form-group .btn {
+    flex-shrink: 0;
+}
+@media (max-width: 700px) {
+    #osScanModal .modal-dialog,
+    #catalogoScanModal .modal-dialog {
+        max-width: 96vw !important;
+    }
+    #osScanModal .modal-body dl,
+    #catalogoScanModal .modal-body dl {
+        grid-template-columns: 110px 1fr !important;
+    }
+}
 .form-msg-error { color: #f87171; font-size: .82rem; padding: 8px 10px; background: rgba(239,68,68,.1); border-radius: var(--radius-sm); margin-top: 8px; }
 
 /* Sugestões de título (OS) */

@@ -22,12 +22,17 @@ $extraJs   = ['catalogo-item-modal.js'];
 <div class="card catalogo-card-novo-item-solo">
     <div class="card-header"><h3 class="card-title">Novo item</h3></div>
     <div class="card-body">
-        <form method="post" action="<?= BASE_URL ?>/estoque/catalogo/criar">
+        <form method="post" action="<?= BASE_URL ?>/estoque/catalogo/criar" id="catalogoNovoForm">
             <div class="form-group">
                 <label class="form-label required">Código</label>
-                <input type="text" name="codigo" class="form-control" required maxlength="64"
-                       value="<?= htmlspecialchars((string)($sugerido ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-                       pattern="[A-Z0-9._\-]{1,64}" title="Maiúsculas, números, . _ -">
+                <div style="display:flex;gap:.4rem;align-items:center">
+                    <input type="text" name="codigo" class="form-control" required maxlength="64"
+                           value="<?= htmlspecialchars((string)($sugerido ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                           pattern="[A-Z0-9._\-]{1,64}" title="Maiúsculas, números, . _ -">
+                    <button type="button" class="btn btn-ghost btn-sm" id="btnCatalogoScan" title="Escanear código/QR">
+                        <i class="fas fa-qrcode"></i>
+                    </button>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label required">Nome</label>
@@ -149,6 +154,58 @@ $extraJs   = ['catalogo-item-modal.js'];
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-ghost" data-modal-close>Fechar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="catalogoScanModal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="catalogoScanTitle" style="max-width:700px">
+        <div class="modal-header">
+            <h3 class="modal-title" id="catalogoScanTitle"><i class="fas fa-qrcode"></i> Scanner de item</h3>
+            <button type="button" class="modal-close" data-catalogo-scan-close>&times;</button>
+        </div>
+        <div class="modal-body" style="padding:0 18px 12px">
+            <p class="modal-lead">Bipe com a pistola ou use a câmera. Se já existir item, faça entrada rápida só com quantidade.</p>
+            <div class="form-group">
+                <label class="form-label">Leitura da pistola</label>
+                <input type="text" id="catalogoScanInput" class="form-control" placeholder="Clique e bip o código">
+            </div>
+            <div class="form-group" style="margin-top:.6rem">
+                <button type="button" class="btn btn-ghost btn-sm" id="btnCatalogoCamStart"><i class="fas fa-camera"></i> Câmera</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnCatalogoCamStop" style="display:none"><i class="fas fa-stop"></i> Parar</button>
+            </div>
+            <video id="catalogoScanVideo" style="display:none;width:100%;border-radius:8px;border:1px solid var(--border)" autoplay muted playsinline></video>
+            <p class="form-hint" id="catalogoScanHint" style="margin-top:.5rem;min-height:1.25rem"></p>
+            <hr style="border-color:var(--border);opacity:.45;margin:12px 0">
+            <h4 class="card-title" style="font-size:1rem;margin:0 0 .55rem">Dados do item encontrado</h4>
+            <dl style="display:grid;grid-template-columns:135px 1fr;gap:.35rem .8rem;margin:0 0 .7rem">
+                <dt>Código</dt><dd id="csCodigo">—</dd>
+                <dt>Nome</dt><dd id="csNome">—</dd>
+                <dt>Categoria</dt><dd id="csCategoria">—</dd>
+                <dt>Unidade</dt><dd id="csUnidade">—</dd>
+                <dt>Status</dt><dd id="csStatus">—</dd>
+                <dt>Descrição</dt><dd id="csDescricao">—</dd>
+                <dt>NF</dt><dd id="csNf">—</dd>
+                <dt>Fornecedor</dt><dd id="csFornecedor">—</dd>
+            </dl>
+            <input type="hidden" id="csItemId" value="">
+            <div class="form-group">
+                <label class="form-label required" for="csQtd">Quantidade (obrigatório)</label>
+                <input id="csQtd" type="text" class="form-control" inputmode="decimal" placeholder="Ex.: 1 ou 1,5">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="csNfNumeroEntrada">Nº NF (opcional)</label>
+                <input id="csNfNumeroEntrada" type="text" class="form-control" maxlength="64" placeholder="Ex.: 123456">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="csDataCompra">Data da compra (opcional)</label>
+                <input id="csDataCompra" type="date" class="form-control">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" data-catalogo-scan-close>Fechar</button>
+            <button type="button" class="btn btn-ghost" id="btnCatalogoScanNovo"><i class="fas fa-plus-circle"></i> Cadastrar novo com código lido</button>
+            <button type="button" class="btn btn-primary" id="btnCatalogoEntradaRapida"><i class="fas fa-check"></i> Lançar entrada rápida</button>
         </div>
     </div>
 </div>
