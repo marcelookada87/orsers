@@ -22,6 +22,33 @@ class EstoqueSaldo extends Model
         return round($f, 3);
     }
 
+    /** Quantidade ≥ 0 (ex.: ajuste de saldo na edição do catálogo). */
+    public static function parseQuantidadeNaoNegativa(mixed $raw): float
+    {
+        if (is_numeric($raw)) {
+            $f = (float)$raw;
+        } else {
+            $s = str_replace(',', '.', trim((string)$raw));
+            $f = (float)$s;
+        }
+        if (!is_finite($f) || $f < 0) {
+            throw new InvalidArgumentException('Informe uma quantidade válida (zero ou maior).');
+        }
+
+        return round($f, 3);
+    }
+
+    /** Linha de saldo do usuário para o item, ou null. */
+    public function getLinhaSaldo(int $usuarioId, int $itemId): ?array
+    {
+        $row = $this->db->fetch(
+            'SELECT * FROM `estoque_saldo` WHERE `usuario_id` = ? AND `item_id` = ? LIMIT 1',
+            [$usuarioId, $itemId]
+        );
+
+        return $row ?: null;
+    }
+
     /** Saldo atual (sem lock). */
     public function getQuantidade(int $usuarioId, int $itemId): float
     {
@@ -41,7 +68,9 @@ class EstoqueSaldo extends Model
     {
         return $this->db->fetchAll(
             "SELECT s.*, i.`nome` AS item_nome, i.`codigo` AS item_codigo, i.`unidade` AS item_unidade,
-                    i.`ativo` AS item_ativo, c.`nome` AS categoria_nome
+                    i.`ativo` AS item_ativo, c.`nome` AS categoria_nome,
+                    i.`nf_numero` AS item_nf_numero, i.`fornecedor` AS item_fornecedor,
+                    i.`fornecedor_cnpj` AS item_fornecedor_cnpj, i.`compra_observacoes` AS item_compra_observacoes
              FROM `estoque_saldo` s
              INNER JOIN `estoque_itens` i ON i.`id` = s.`item_id`
              LEFT JOIN `estoque_categorias` c ON c.`id` = i.`categoria_id`
@@ -181,6 +210,73 @@ class EstoqueSaldo extends Model
             $this->db->commit();
 
             return $mid;
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Define o saldo do usuário para o item (valor absoluto), registrando movimentação tipo ajuste.
+     */
+    public function definirQuantidadeManual(int $usuarioId, int $itemId, float $novaQuantidade, ?string $observacao = null): void
+    {
+        $nova = max(0, round($novaQuantidade, 3));
+        $movModel = new EstoqueMovimentacao();
+        $this->db->beginTransaction();
+        try {
+            $row = $this->saldoRowForUpdate($usuarioId, $itemId);
+            $anterior = $row ? round((float)$row['quantidade'], 3) : 0.0;
+
+            if (abs($nova - $anterior) < 0.0000001) {
+                $this->db->commit();
+
+                return;
+            }
+
+            if (!$row && $nova <= 0) {
+                $this->db->commit();
+
+                return;
+            }
+
+            if (!$row && $nova > 0) {
+                if (!LimiteConta::estoquePodeAdicionarNovoTipo($usuarioId, $itemId)) {
+                    throw new RuntimeException('Limite de tipos de itens no estoque atingido para este usuário.');
+                }
+                $this->db->execute(
+                    'INSERT INTO `estoque_saldo` (`usuario_id`, `item_id`, `quantidade`, `quantidade_minima`)
+                     VALUES (?, ?, ?, 0)',
+                    [$usuarioId, $itemId, $nova]
+                );
+            } elseif ($row) {
+                $this->db->execute(
+                    'UPDATE `estoque_saldo` SET `quantidade` = ? WHERE `id` = ?',
+                    [$nova, $row['id']]
+                );
+            } else {
+                $this->db->commit();
+
+                return;
+            }
+
+            $obs = ($observacao !== null && trim($observacao) !== '')
+                ? mb_substr(trim($observacao), 0, 500)
+                : 'Ajuste manual (edição do item no catálogo)';
+
+            $movModel->registrar([
+                'usuario_id'      => $usuarioId,
+                'item_id'         => $itemId,
+                'tipo'            => 'ajuste',
+                'quantidade'      => round(abs($nova - $anterior), 3),
+                'saldo_anterior'  => $anterior,
+                'saldo_posterior' => $nova,
+                'referencia_tipo' => 'ajuste',
+                'referencia_id'   => null,
+                'observacao'      => $obs,
+            ]);
+
+            $this->db->commit();
         } catch (Throwable $e) {
             $this->db->rollback();
             throw $e;
@@ -338,10 +434,21 @@ class EstoqueSaldo extends Model
     public function atualizarMinimo(int $usuarioId, int $itemId, float $minimo): void
     {
         $minimo = max(0, round($minimo, 3));
-        $this->db->execute(
-            'UPDATE `estoque_saldo` SET `quantidade_minima` = ? WHERE `usuario_id` = ? AND `item_id` = ?',
-            [$minimo, $usuarioId, $itemId]
-        );
+        if ($this->getLinhaSaldo($usuarioId, $itemId)) {
+            $this->db->execute(
+                'UPDATE `estoque_saldo` SET `quantidade_minima` = ? WHERE `usuario_id` = ? AND `item_id` = ?',
+                [$minimo, $usuarioId, $itemId]
+            );
+
+            return;
+        }
+        if ($minimo > 0) {
+            $this->db->execute(
+                'INSERT INTO `estoque_saldo` (`usuario_id`, `item_id`, `quantidade`, `quantidade_minima`)
+                 VALUES (?, ?, 0, ?)',
+                [$usuarioId, $itemId, $minimo]
+            );
+        }
     }
 }
 

@@ -49,10 +49,10 @@ $fmtQ = static fn ($v) => rtrim(rtrim(number_format((float)$v, 3, ',', '.'), '0'
     </div>
 </div>
 
-<form method="get" action="<?= BASE_URL ?>/estoque" class="estoque-filtros-toolbar" id="formEstoqueFiltros" autocomplete="off">
-    <div class="estoque-filtros-toolbar__row">
+<form method="get" action="<?= BASE_URL ?>/estoque" class="estoque-filtros-toolbar estoque-filtros-toolbar--amplo" id="formEstoqueFiltros" autocomplete="off">
+    <div class="estoque-filtros-toolbar__row estoque-filtros-toolbar__row--primary">
         <label class="sr-only" for="estoqueFiltroSit">Situação</label>
-        <select id="estoqueFiltroSit" name="f" class="form-control form-control-sm estoque-filtro-sel" title="Itens no mínimo = saldo no ou abaixo do mínimo (em risco de acabar)" onchange="document.getElementById('formEstoqueFiltros').submit()">
+        <select id="estoqueFiltroSit" name="f" class="form-control estoque-filtro-sel" title="Itens no mínimo = saldo no ou abaixo do mínimo (em risco de acabar)" onchange="document.getElementById('formEstoqueFiltros').submit()">
             <option value="todos"<?= ($filtro ?? 'todos') === 'todos' ? ' selected' : '' ?>>Todos</option>
             <option value="alerta"<?= ($filtro ?? '') === 'alerta' ? ' selected' : '' ?>>No mínimo (a vencer)</option>
             <option value="zerado"<?= ($filtro ?? '') === 'zerado' ? ' selected' : '' ?>>Sem saldo (0)</option>
@@ -61,7 +61,7 @@ $fmtQ = static fn ($v) => rtrim(rtrim(number_format((float)$v, 3, ',', '.'), '0'
         </select>
         <?php if (!empty($categoriasOpts)): ?>
         <label class="sr-only" for="estoqueFiltroCat">Categoria</label>
-        <select id="estoqueFiltroCat" name="cat" class="form-control form-control-sm estoque-filtro-sel" onchange="document.getElementById('formEstoqueFiltros').submit()">
+        <select id="estoqueFiltroCat" name="cat" class="form-control estoque-filtro-sel" onchange="document.getElementById('formEstoqueFiltros').submit()">
             <option value=""<?= ($catFiltro ?? '') === '' ? ' selected' : '' ?>>Todas as categorias</option>
             <?php foreach ($categoriasOpts as $cOpt): ?>
             <option value="<?= htmlspecialchars($cOpt) ?>"<?= ($catFiltro ?? '') === $cOpt ? ' selected' : '' ?>><?= htmlspecialchars($cOpt) ?></option>
@@ -69,11 +69,18 @@ $fmtQ = static fn ($v) => rtrim(rtrim(number_format((float)$v, 3, ',', '.'), '0'
         </select>
         <?php endif; ?>
         <label class="sr-only" for="estoqueFiltroQ">Buscar código ou nome</label>
-        <input type="search" id="estoqueFiltroQ" name="q" value="<?= htmlspecialchars($busca ?? '') ?>" class="form-control form-control-sm estoque-filtro-q" placeholder="Código ou nome">
-        <button type="submit" class="btn btn-primary btn-sm estoque-filtro-btn" title="Buscar"><i class="fas fa-search"></i></button>
+        <input type="search" id="estoqueFiltroQ" name="q" value="<?= htmlspecialchars($busca ?? '') ?>" class="form-control estoque-filtro-q" placeholder="Código ou nome do item">
+        <button type="submit" class="btn btn-primary estoque-filtro-btn" title="Aplicar filtros"><i class="fas fa-search"></i><span class="estoque-filtro-btn__label"> Buscar</span></button>
         <?php if (!empty($filtroEstoqueAtivo)): ?>
-        <a href="<?= BASE_URL ?>/estoque" class="btn btn-ghost btn-sm">Limpar</a>
+        <a href="<?= BASE_URL ?>/estoque" class="btn btn-ghost">Limpar filtros</a>
         <?php endif; ?>
+    </div>
+    <div class="estoque-filtros-toolbar__row estoque-filtros-toolbar__row--sec">
+        <span class="estoque-filtros-label" aria-hidden="true"><i class="fas fa-file-invoice"></i> Compra</span>
+        <label class="sr-only" for="estoqueFiltroNf">Número da nota fiscal</label>
+        <input type="search" id="estoqueFiltroNf" name="qnf" value="<?= htmlspecialchars($buscaNf ?? '') ?>" class="form-control estoque-filtro-q estoque-filtro-q--nf" placeholder="Nº da nota fiscal (NF-e)" title="Filtrar por trecho do número da NF">
+        <label class="sr-only" for="estoqueFiltroForn">Fornecedor</label>
+        <input type="search" id="estoqueFiltroForn" name="qforn" value="<?= htmlspecialchars($buscaFornecedor ?? '') ?>" class="form-control estoque-filtro-q estoque-filtro-q--forn" placeholder="Fornecedor, CNPJ ou observação da compra" title="Busca em nome do fornecedor, CNPJ e campo de observações/lote">
     </div>
 </form>
 <?php if (!empty($filtroEstoqueAtivo) && (int)($totalLinhas ?? 0) > 0): ?>
@@ -105,7 +112,10 @@ $fmtQ = static fn ($v) => rtrim(rtrim(number_format((float)$v, 3, ',', '.'), '0'
                         <th>Código</th>
                         <th>Item</th>
                         <?php if ($mostrarColCat): ?><th class="th-cat">Cat.</th><?php endif; ?>
+                        <th class="th-nf">NF</th>
+                        <th class="th-forn">Fornecedor</th>
                         <th>Un.</th>
+                        <th>Status</th>
                         <th>Quantidade</th>
                         <th>Mínimo (alerta)</th>
                         <th class="table-actions-th" aria-label="Ações"></th>
@@ -126,7 +136,14 @@ $fmtQ = static fn ($v) => rtrim(rtrim(number_format((float)$v, 3, ',', '.'), '0'
                             echo $cn !== '' ? htmlspecialchars($cn) : '—';
                         ?></td>
                         <?php endif; ?>
+                        <?php
+                        $celNf = trim((string)($r['item_nf_numero'] ?? ''));
+                        $celFo = trim((string)($r['item_fornecedor'] ?? ''));
+                        ?>
+                        <td class="td-nf text-muted" title="<?= $celNf !== '' ? htmlspecialchars($celNf) : '' ?>"><?= $celNf !== '' ? htmlspecialchars(mb_strlen($celNf) > 18 ? mb_substr($celNf, 0, 18) . '…' : $celNf) : '—' ?></td>
+                        <td class="td-forn text-muted" title="<?= $celFo !== '' ? htmlspecialchars($celFo) : '' ?>"><?= $celFo !== '' ? htmlspecialchars(mb_strlen($celFo) > 22 ? mb_substr($celFo, 0, 22) . '…' : $celFo) : '—' ?></td>
                         <td><?= htmlspecialchars($r['item_unidade']) ?></td>
+                        <td data-order="<?= (int)($r['item_ativo'] ?? 0) ?>"><?= (int)($r['item_ativo'] ?? 0) ? '<span class="badge badge-success">Ativo</span>' : '<span class="badge">Inativo</span>' ?></td>
                         <td data-order="<?= htmlspecialchars((string)$q) ?>"><strong><?= $fmtQ($q) ?></strong></td>
                         <td>
                             <form method="post" action="<?= BASE_URL ?>/estoque/minimo" class="form-inline-minimo" style="display:flex;gap:.35rem;align-items:center">
@@ -138,10 +155,10 @@ $fmtQ = static fn ($v) => rtrim(rtrim(number_format((float)$v, 3, ',', '.'), '0'
                         </td>
                         <td class="table-actions">
                             <?php if (Auth::isPerfilTecnico()): ?>
-                            <a href="<?= BASE_URL ?>/estoque/catalogo/<?= (int)$r['item_id'] ?>/editar" class="btn btn-ghost btn-sm" title="Editar item no catálogo"><i class="fas fa-edit"></i></a>
-                            <?php endif; ?>
-                            <?php if ((int)($r['item_ativo'] ?? 0) === 0): ?>
-                            <span class="badge badge-muted">Inativo</span>
+                            <a href="<?= BASE_URL ?>/estoque/catalogo/<?= (int)$r['item_id'] ?>/editar" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i></a>
+                            <form method="post" action="<?= BASE_URL ?>/estoque/catalogo/<?= (int)$r['item_id'] ?>/toggle" style="display:inline" onsubmit="return confirm('Alterar status deste item?');">
+                                <button type="submit" class="btn btn-ghost btn-sm" title="Ativar/desativar"><i class="fas fa-power-off"></i></button>
+                            </form>
                             <?php endif; ?>
                         </td>
                     </tr>

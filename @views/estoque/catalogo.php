@@ -47,6 +47,8 @@
                 <label class="form-label">Descrição</label>
                 <textarea name="descricao" class="form-control" rows="2" maxlength="500"></textarea>
             </div>
+            <?php $itemEstoqueItem = null;
+            require __DIR__ . '/_form_dados_compra_item.php'; ?>
             <div class="form-group">
                 <label class="form-label">Quantidade inicial no meu estoque</label>
                 <input type="text" name="quantidade_inicial" class="form-control" inputmode="decimal" placeholder="Opcional — ex.: 5 ou 1,5">
@@ -61,23 +63,32 @@
     <div class="card-header"><h3 class="card-title">Itens cadastrados</h3></div>
     <div class="card-body">
         <div class="table-wrap">
-            <table class="table table-datatable" data-dt-order="[]" data-dt-page-length="25">
+            <table class="table table-datatable" data-dt-order="[]" data-dt-page-length="25" data-dt-no-sort-last="1">
                 <thead>
                     <tr>
                         <th>Código</th>
                         <th>Nome</th>
                         <th>Categoria</th>
+                        <th>NF</th>
+                        <th>Fornecedor</th>
                         <th>Un.</th>
                         <th>Status</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($itens as $it): ?>
+                    <?php foreach ($itens as $it):
+                        $nfT = trim((string)($it['nf_numero'] ?? ''));
+                        $nfD = $nfT !== '' ? (mb_strlen($nfT) > 20 ? mb_substr($nfT, 0, 20) . '…' : $nfT) : '—';
+                        $foT = trim((string)($it['fornecedor'] ?? ''));
+                        $foD = $foT !== '' ? (mb_strlen($foT) > 28 ? mb_substr($foT, 0, 28) . '…' : $foT) : '—';
+                        ?>
                     <tr>
                         <td><code><?= htmlspecialchars((string)$it['codigo']) ?></code></td>
                         <td><?= htmlspecialchars((string)$it['nome']) ?></td>
                         <td><?= htmlspecialchars((string)($it['categoria_nome'] ?? '—')) ?></td>
+                        <td class="text-muted" title="<?= $nfT !== '' ? htmlspecialchars($nfT) : '' ?>"><?= $nfT !== '' ? htmlspecialchars($nfD) : '—' ?></td>
+                        <td class="text-muted" title="<?= $foT !== '' ? htmlspecialchars($foT) : '' ?>"><?= $foT !== '' ? htmlspecialchars($foD) : '—' ?></td>
                         <td><?= htmlspecialchars((string)$it['unidade']) ?></td>
                         <td><?= (int)($it['ativo'] ?? 0) ? '<span class="badge badge-success">Ativo</span>' : '<span class="badge">Inativo</span>' ?></td>
                         <td class="table-actions">

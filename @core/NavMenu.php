@@ -34,12 +34,18 @@ class NavMenu
                     'INSERT IGNORE INTO `nav_menu_item_perfis` (`menu_item_id`, `perfil`) VALUES (?, ?)',
                     [$mid, 'tecnico']
                 );
+                $db->execute(
+                    "UPDATE `nav_menu_itens` SET `sort_order` = 24 WHERE `url_path` = '/estoque/categorias'"
+                );
+                $db->execute(
+                    "UPDATE `nav_menu_itens` SET `sort_order` = 25 WHERE `url_path` = '/estoque/catalogo'"
+                );
 
                 return;
             }
             $db->execute(
                 "INSERT INTO `nav_menu_itens` (`section_code`,`label`,`icon_class`,`url_path`,`sort_order`,`ativo`,`requer_estoque_ativo`,`item_class`,`active_rule`)
-                 VALUES ('gestao','Categorias','fas fa-folder','/estoque/categorias',26,1,1,NULL,'estoque_categorias')"
+                 VALUES ('gestao','Categorias','fas fa-folder','/estoque/categorias',24,1,1,NULL,'estoque_categorias')"
             );
             $mid = (int)$db->lastInsertId();
             if ($mid > 0) {
@@ -48,6 +54,9 @@ class NavMenu
                     [$mid, 'tecnico']
                 );
             }
+            $db->execute(
+                "UPDATE `nav_menu_itens` SET `sort_order` = 25 WHERE `url_path` = '/estoque/catalogo'"
+            );
         } catch (Throwable $e) {
             error_log('NavMenu::ensureEstoqueCategoriasMenuItem: ' . $e->getMessage());
         }

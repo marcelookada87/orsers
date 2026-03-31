@@ -54,6 +54,51 @@ class EstoqueController extends Controller
         }
     }
 
+    /**
+     * NF-e, fornecedor e observações de compra (campos opcionais do catálogo).
+     *
+     * @return array{
+     *   nf_numero: string|null,
+     *   nf_emissao: string|null,
+     *   fornecedor: string|null,
+     *   fornecedor_cnpj: string|null,
+     *   compra_observacoes: string|null
+     * }
+     */
+    private function parseDadosCompraItemDoPost(): array
+    {
+        $nfNum = trim((string)$this->post('nf_numero', ''));
+        $nfNum = $nfNum !== '' ? mb_substr($nfNum, 0, 64) : null;
+
+        $nfEmRaw = trim((string)$this->post('nf_emissao', ''));
+        $nfEm    = null;
+        if ($nfEmRaw !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $nfEmRaw)) {
+            $nfEm = $nfEmRaw;
+        }
+
+        $forn = trim((string)$this->post('fornecedor', ''));
+        $forn = $forn !== '' ? mb_substr($forn, 0, 200) : null;
+
+        $cnpj = trim((string)$this->post('fornecedor_cnpj', ''));
+        if ($cnpj !== '') {
+            $cnpj = mb_substr(preg_replace('/[^0-9.\/-]/', '', $cnpj) ?? '', 0, 18);
+            $cnpj = $cnpj !== '' ? $cnpj : null;
+        } else {
+            $cnpj = null;
+        }
+
+        $obs = trim((string)$this->post('compra_observacoes', ''));
+        $obs = $obs !== '' ? mb_substr($obs, 0, 600) : null;
+
+        return [
+            'nf_numero'          => $nfNum,
+            'nf_emissao'         => $nfEm,
+            'fornecedor'         => $forn,
+            'fornecedor_cnpj'    => $cnpj,
+            'compra_observacoes' => $obs,
+        ];
+    }
+
     /** @return array<string,mixed> */
     private function carregarOrdemParaMateriais(int $ordemId): array
     {
@@ -67,9 +112,17 @@ class EstoqueController extends Controller
      * @param list<array<string,mixed>> $linhas
      * @return list<array<string,mixed>>
      */
-    private function filtrarLinhasEstoqueIndex(array $linhas, string $filtro, string $busca, string $categoria): array
-    {
+    private function filtrarLinhasEstoqueIndex(
+        array $linhas,
+        string $filtro,
+        string $busca,
+        string $categoria,
+        string $buscaNf = '',
+        string $buscaFornecedor = ''
+    ): array {
         $buscaNorm = $busca !== '' ? mb_strtolower(trim($busca), 'UTF-8') : '';
+        $nfNorm    = $buscaNf !== '' ? mb_strtolower(trim($buscaNf), 'UTF-8') : '';
+        $fornNorm  = $buscaFornecedor !== '' ? mb_strtolower(trim($buscaFornecedor), 'UTF-8') : '';
         $out       = [];
         foreach ($linhas as $r) {
             if ($categoria !== '' && trim((string)($r['categoria_nome'] ?? '')) !== $categoria) {
@@ -84,6 +137,23 @@ class EstoqueController extends Controller
                     'UTF-8'
                 );
                 if (!str_contains($hay, $buscaNorm)) {
+                    continue;
+                }
+            }
+            if ($nfNorm !== '') {
+                $nfHay = mb_strtolower(trim((string)($r['item_nf_numero'] ?? '')), 'UTF-8');
+                if ($nfHay === '' || !str_contains($nfHay, $nfNorm)) {
+                    continue;
+                }
+            }
+            if ($fornNorm !== '') {
+                $fornHay = mb_strtolower(
+                    trim((string)($r['item_fornecedor'] ?? '')) . ' '
+                    . trim((string)($r['item_fornecedor_cnpj'] ?? '')) . ' '
+                    . trim((string)($r['item_compra_observacoes'] ?? '')),
+                    'UTF-8'
+                );
+                if (!str_contains($fornHay, $fornNorm)) {
                     continue;
                 }
             }
@@ -121,6 +191,8 @@ class EstoqueController extends Controller
         }
         $filtro = (string)$this->get('f', 'todos');
         $busca  = trim((string)$this->get('q', ''));
+        $buscaNf = trim((string)$this->get('qnf', ''));
+        $buscaFornecedor = trim((string)$this->get('qforn', ''));
         $catFiltro = trim((string)$this->get('cat', ''));
         $permitidos = ['todos', 'alerta', 'zerado', 'inativo', 'ok'];
         if (!in_array($filtro, $permitidos, true)) {
@@ -138,12 +210,20 @@ class EstoqueController extends Controller
         if ($catFiltro !== '' && !in_array($catFiltro, $categoriasOpts, true)) {
             $catFiltro = '';
         }
-        $linhas = $this->filtrarLinhasEstoqueIndex($linhasTodas, $filtro, $busca, $catFiltro);
+        $linhas = $this->filtrarLinhasEstoqueIndex(
+            $linhasTodas,
+            $filtro,
+            $busca,
+            $catFiltro,
+            $buscaNf,
+            $buscaFornecedor
+        );
         $tiposOk = $this->saldoModel->contarTiposComEstoquePositivo($uid);
         $user    = (new User())->find($uid);
         $limite  = $user['estoque_limite_itens'] ?? null;
         $totalLinhas = count($linhasTodas);
-        $filtroEstoqueAtivo = $filtro !== 'todos' || $busca !== '' || $catFiltro !== '';
+        $filtroEstoqueAtivo = $filtro !== 'todos' || $busca !== '' || $catFiltro !== ''
+            || $buscaNf !== '' || $buscaFornecedor !== '';
 
         $this->render('estoque/index', compact(
             'flash',
@@ -155,6 +235,8 @@ class EstoqueController extends Controller
             'limite',
             'filtro',
             'busca',
+            'buscaNf',
+            'buscaFornecedor',
             'catFiltro',
             'categoriasOpts',
             'totalLinhas',
@@ -293,7 +375,9 @@ class EstoqueController extends Controller
             }
         }
 
-        $newId = (int)$this->itemModel->create([
+        $compra = $this->parseDadosCompraItemDoPost();
+
+        $newId = (int)$this->itemModel->create(array_merge([
             'categoria_id' => $catId,
             'codigo'       => $codigo,
             'nome'         => mb_substr($nome, 0, 200),
@@ -301,7 +385,7 @@ class EstoqueController extends Controller
             'unidade'      => $unidade !== '' ? $unidade : 'un',
             'ativo'        => 1,
             'criado_por'   => (int)Auth::id(),
-        ]);
+        ], $compra));
 
         if ($qIni !== null && $qIni > 0) {
             try {
@@ -336,8 +420,18 @@ class EstoqueController extends Controller
         }
         $flash      = $this->getFlash();
         $categorias = (new EstoqueCategoria())->listarTodas();
+        $uid        = (int)Auth::id();
+        $saldoLinha = $this->saldoModel->getLinhaSaldo($uid, (int)$item['id']);
+        $estoqueQ   = $saldoLinha ? round((float)$saldoLinha['quantidade'], 3) : 0.0;
+        $estoqueMin = $saldoLinha ? round((float)$saldoLinha['quantidade_minima'], 3) : 0.0;
 
-        $this->render('estoque/catalogo_editar', compact('flash', 'item', 'categorias'));
+        $this->render('estoque/catalogo_editar', compact(
+            'flash',
+            'item',
+            'categorias',
+            'estoqueQ',
+            'estoqueMin'
+        ));
     }
 
     public function catalogoAtualizar(string $id): void
@@ -370,14 +464,34 @@ class EstoqueController extends Controller
             $desc = mb_substr($desc, 0, 500);
         }
 
-        $this->itemModel->update($iid, [
+        $compra = $this->parseDadosCompraItemDoPost();
+
+        $this->itemModel->update($iid, array_merge([
             'categoria_id' => $catId,
             'nome'         => mb_substr($nome, 0, 200),
             'descricao'    => $desc !== '' ? $desc : null,
             'unidade'      => $unidade !== '' ? $unidade : 'un',
-        ]);
+        ], $compra));
 
-        $this->setFlash('success', 'Item atualizado.');
+        $uid = (int)Auth::id();
+        try {
+            $qNova = EstoqueSaldo::parseQuantidadeNaoNegativa($this->post('estoque_quantidade', '0'));
+        } catch (InvalidArgumentException $e) {
+            $this->setFlash('error', $e->getMessage());
+            $this->redirect('/estoque/catalogo/' . $iid . '/editar');
+        }
+        $minRaw = trim((string)$this->post('estoque_quantidade_minima', '0'));
+        $min    = max(0, round((float)str_replace(',', '.', $minRaw), 3));
+
+        try {
+            $this->saldoModel->definirQuantidadeManual($uid, $iid, $qNova);
+            $this->saldoModel->atualizarMinimo($uid, $iid, $min);
+        } catch (RuntimeException $e) {
+            $this->setFlash('error', $e->getMessage());
+            $this->redirect('/estoque/catalogo/' . $iid . '/editar');
+        }
+
+        $this->setFlash('success', 'Item e seu estoque atualizados.');
         $this->redirect('/estoque/catalogo');
     }
 
