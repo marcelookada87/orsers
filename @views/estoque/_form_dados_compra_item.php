@@ -19,6 +19,12 @@ $__valDate = static function (?array $row): string {
 
     return htmlspecialchars(strlen($s) >= 10 ? substr($s, 0, 10) : $s, ENT_QUOTES, 'UTF-8');
 };
+$__valMoney = static function (?array $row): string {
+    if (!$row || !array_key_exists('nf_valor_total', $row) || $row['nf_valor_total'] === null || $row['nf_valor_total'] === '') {
+        return '';
+    }
+    return htmlspecialchars(number_format((float)$row['nf_valor_total'], 2, ',', '.'), ENT_QUOTES, 'UTF-8');
+};
 ?>
 <div class="catalogo-bloco-compra" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-subtle, #e2e8f0)">
     <h4 class="card-title" style="font-size:1rem;margin:0 0 .65rem">Nota fiscal e fornecedor <span class="text-muted" style="font-weight:400">(opcional)</span></h4>
@@ -33,6 +39,12 @@ $__valDate = static function (?array $row): string {
         <label class="form-label" for="nf_emissao">Data de emissão da NF</label>
         <input id="nf_emissao" type="date" name="nf_emissao" class="form-control"
                value="<?= $__valDate($itemEstoqueItem) ?>">
+    </div>
+    <div class="form-group">
+        <label class="form-label" for="nf_valor_total">Valor total da nota (R$)</label>
+        <input id="nf_valor_total" type="text" name="nf_valor_total" class="form-control" maxlength="20" inputmode="decimal"
+               value="<?= $__valMoney($itemEstoqueItem) ?>"
+               placeholder="Ex.: 1250,90">
     </div>
     <div class="form-group">
         <label class="form-label" for="fornecedor">Fornecedor / empresa</label>

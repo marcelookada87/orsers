@@ -328,6 +328,7 @@ CREATE TABLE IF NOT EXISTS `estoque_itens` (
     `descricao`    VARCHAR(500) NULL DEFAULT NULL,
     `nf_numero`          VARCHAR(64)  NULL DEFAULT NULL COMMENT 'Número NF-e / nota fiscal',
     `nf_emissao`         DATE         NULL DEFAULT NULL COMMENT 'Data emissão NF (opcional)',
+    `nf_valor_total`     DECIMAL(12,2) NULL DEFAULT NULL COMMENT 'Valor total da nota fiscal',
     `fornecedor`         VARCHAR(200) NULL DEFAULT NULL COMMENT 'Nome ou razão social do fornecedor',
     `fornecedor_cnpj`    VARCHAR(18)  NULL DEFAULT NULL COMMENT 'CNPJ do fornecedor (opcional)',
     `compra_observacoes` VARCHAR(600) NULL DEFAULT NULL COMMENT 'Lote, pedido, serial, demais informações da compra',

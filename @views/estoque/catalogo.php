@@ -1,4 +1,7 @@
-<?php $pageTitle = 'Catálogo e itens'; ?>
+<?php
+$pageTitle = 'Catálogo e itens';
+$extraJs   = ['catalogo-item-modal.js'];
+?>
 
 <div class="page-header">
     <div>
@@ -44,16 +47,16 @@
                 <input type="text" name="unidade" class="form-control" value="un" maxlength="16" placeholder="un, kg, m, cx…">
             </div>
             <div class="form-group">
+                <label class="form-label">Quantidade inicial no meu estoque</label>
+                <input type="text" name="quantidade_inicial" class="form-control" inputmode="decimal" placeholder="Opcional — ex.: 5 ou 1,5">
+                <small class="form-hint">Se preenchido, gera entrada automática no seu estoque (respeita limite de tipos de item, se houver).</small>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Descrição</label>
                 <textarea name="descricao" class="form-control" rows="2" maxlength="500"></textarea>
             </div>
             <?php $itemEstoqueItem = null;
             require __DIR__ . '/_form_dados_compra_item.php'; ?>
-            <div class="form-group">
-                <label class="form-label">Quantidade inicial no meu estoque</label>
-                <input type="text" name="quantidade_inicial" class="form-control" inputmode="decimal" placeholder="Opcional — ex.: 5 ou 1,5">
-                <small class="form-hint">Se preenchido, gera entrada automática no seu estoque (respeita limite de tipos de item, se houver).</small>
-            </div>
             <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Cadastrar</button>
         </form>
     </div>
@@ -92,6 +95,23 @@
                         <td><?= htmlspecialchars((string)$it['unidade']) ?></td>
                         <td><?= (int)($it['ativo'] ?? 0) ? '<span class="badge badge-success">Ativo</span>' : '<span class="badge">Inativo</span>' ?></td>
                         <td class="table-actions">
+                            <button type="button"
+                                    class="btn btn-ghost btn-sm js-item-view"
+                                    title="Visualizar item"
+                                    data-codigo="<?= htmlspecialchars((string)$it['codigo']) ?>"
+                                    data-nome="<?= htmlspecialchars((string)$it['nome']) ?>"
+                                    data-categoria="<?= htmlspecialchars((string)($it['categoria_nome'] ?? '—')) ?>"
+                                    data-unidade="<?= htmlspecialchars((string)$it['unidade']) ?>"
+                                    data-status="<?= (int)($it['ativo'] ?? 0) ? 'Ativo' : 'Inativo' ?>"
+                                    data-descricao="<?= htmlspecialchars((string)($it['descricao'] ?? '')) ?>"
+                                    data-nf-numero="<?= htmlspecialchars((string)($it['nf_numero'] ?? '')) ?>"
+                                    data-nf-emissao="<?= htmlspecialchars((string)($it['nf_emissao'] ?? '')) ?>"
+                                    data-nf-valor-total="<?= htmlspecialchars((string)($it['nf_valor_total'] ?? '')) ?>"
+                                    data-fornecedor="<?= htmlspecialchars((string)($it['fornecedor'] ?? '')) ?>"
+                                    data-fornecedor-cnpj="<?= htmlspecialchars((string)($it['fornecedor_cnpj'] ?? '')) ?>"
+                                    data-compra-observacoes="<?= htmlspecialchars((string)($it['compra_observacoes'] ?? '')) ?>">
+                                <i class="fas fa-eye"></i>
+                            </button>
                             <a href="<?= BASE_URL ?>/estoque/catalogo/<?= (int)$it['id'] ?>/editar" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i></a>
                             <form method="post" action="<?= BASE_URL ?>/estoque/catalogo/<?= (int)$it['id'] ?>/toggle" style="display:inline" onsubmit="return confirm('Alterar status deste item?');">
                                 <button type="submit" class="btn btn-ghost btn-sm" title="Ativar/desativar"><i class="fas fa-power-off"></i></button>
@@ -101,6 +121,34 @@
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="itemViewModal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="itemViewTitle" style="max-width:640px">
+        <div class="modal-header">
+            <h3 class="modal-title" id="itemViewTitle"><i class="fas fa-box-open"></i> Dados do item</h3>
+            <button type="button" class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body" style="padding:12px 18px 12px">
+            <dl class="item-view-grid" style="display:grid;grid-template-columns:160px 1fr;gap:.55rem .9rem;margin:0">
+                <dt>Código</dt><dd id="ivCodigo"></dd>
+                <dt>Nome</dt><dd id="ivNome"></dd>
+                <dt>Categoria</dt><dd id="ivCategoria"></dd>
+                <dt>Unidade</dt><dd id="ivUnidade"></dd>
+                <dt>Status</dt><dd id="ivStatus"></dd>
+                <dt>Descrição</dt><dd id="ivDescricao"></dd>
+                <dt>Nº NF</dt><dd id="ivNfNumero"></dd>
+                <dt>Emissão NF</dt><dd id="ivNfEmissao"></dd>
+                <dt>Valor total NF</dt><dd id="ivNfValor"></dd>
+                <dt>Fornecedor</dt><dd id="ivFornecedor"></dd>
+                <dt>CNPJ</dt><dd id="ivFornecedorCnpj"></dd>
+                <dt>Obs. compra</dt><dd id="ivCompraObs"></dd>
+            </dl>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" data-modal-close>Fechar</button>
         </div>
     </div>
 </div>

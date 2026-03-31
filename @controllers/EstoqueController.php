@@ -60,6 +60,7 @@ class EstoqueController extends Controller
      * @return array{
      *   nf_numero: string|null,
      *   nf_emissao: string|null,
+     *   nf_valor_total: float|null,
      *   fornecedor: string|null,
      *   fornecedor_cnpj: string|null,
      *   compra_observacoes: string|null
@@ -74,6 +75,15 @@ class EstoqueController extends Controller
         $nfEm    = null;
         if ($nfEmRaw !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $nfEmRaw)) {
             $nfEm = $nfEmRaw;
+        }
+        $nfValorRaw = trim((string)$this->post('nf_valor_total', ''));
+        $nfValor    = null;
+        if ($nfValorRaw !== '') {
+            $tmp = str_replace(['.', ','], ['', '.'], $nfValorRaw);
+            $v = (float)$tmp;
+            if (is_finite($v) && $v >= 0) {
+                $nfValor = round($v, 2);
+            }
         }
 
         $forn = trim((string)$this->post('fornecedor', ''));
@@ -93,6 +103,7 @@ class EstoqueController extends Controller
         return [
             'nf_numero'          => $nfNum,
             'nf_emissao'         => $nfEm,
+            'nf_valor_total'     => $nfValor,
             'fornecedor'         => $forn,
             'fornecedor_cnpj'    => $cnpj,
             'compra_observacoes' => $obs,
