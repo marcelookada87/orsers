@@ -1,0 +1,119 @@
+/* Integração DataTables + tema OS Manager (escuro) */
+
+.table-responsive .dataTables_wrapper {
+    width: 100%;
+    padding: 12px 14px 14px;
+}
+
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 10px;
+}
+
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+    font-size: .8rem;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    border-radius: var(--radius-sm) !important;
+    border-color: var(--border) !important;
+    background: var(--bg-base) !important;
+    color: var(--text-primary) !important;
+    padding: 6px 10px !important;
+    font-size: .82rem !important;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: var(--radius-sm) !important;
+    border-color: var(--border) !important;
+    background: var(--bg-base) !important;
+    color: var(--text-primary) !important;
+    min-width: 180px;
+    padding: 0.45rem 0.65rem !important;
+}
+
+.dt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dt-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+}
+
+.dataTables_wrapper .dataTables_info {
+    font-size: .78rem;
+    color: var(--text-muted);
+    padding-top: 0 !important;
+    float: none !important;
+}
+
+.dataTables_wrapper .dataTables_paginate {
+    float: none !important;
+    padding-top: 0 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    border-radius: var(--radius-sm) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
+    margin-left: 4px !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background: var(--accent-light) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--bg-hover) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+table.dataTable.table {
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+table.dataTable thead th {
+    font-size: .73rem;
+}
+
+table.dataTable tbody td {
+    font-size: .83rem;
+    vertical-align: middle;
+}
+
+html.dark body.dataTables_processing {
+    background: var(--bg-elevated);
+}
+
+@media (max-width: 640px) {
+    .dt-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: 0;
+        width: 100%;
+    }
+}
